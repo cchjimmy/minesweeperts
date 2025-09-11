@@ -86,9 +86,15 @@ function fillIndices(
 function msToTimeFormat(ms: number): string {
   return new Date(ms).toISOString().substring(11, 11 + 8);
 }
+function randomRange(max = 1, min = 0): number {
+  return Math.random() * (max - min) + min;
+}
 function initGame(ctx: CanvasRenderingContext2D, game: Game) {
   ((ctx.canvas.width = game.width * game.cellSize),
     (ctx.canvas.height = game.height * game.cellSize));
+  game.colors.bomb = game.colors.numbers = "red";
+  game.colors.tileEdge = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
+  game.colors.tile = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
   clearState(game.gameState, States.clear, game.width, game.height);
   clearState(game.numbers, 0, game.width, game.height);
   clearState(game.mask, 0, game.width, game.height);
@@ -188,7 +194,6 @@ globalThis.window.onload = () => {
     e.preventDefault();
     retrieveFormData(form, Game);
     initGame(ctx, Game);
-    Game.colors.bomb = Game.colors.numbers = "red";
     now = performance.now();
   };
 
@@ -213,9 +218,9 @@ globalThis.window.onload = () => {
     const selectedIndex = x + y * Game.width;
     updateMask(Game, selectedIndex);
     const exploded = Game.gameState[selectedIndex];
-    const cleared =
+    const solved =
       Game.mask.reduce((p, c) => (p += +(c == 0)), 0) == Game.bombCount;
-    if (exploded || cleared) {
+    if (exploded || solved) {
       Game.mask.fill(1);
       const status = document.querySelector("#status");
       if (!status) return;
@@ -223,7 +228,7 @@ globalThis.window.onload = () => {
         ? "BOOM! Time wasted: "
         : "SOLVED! Solve time: ";
       status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
-      Game.colors.bomb = Game.colors.numbers = "green";
+      if (solved) Game.colors.bomb = Game.colors.numbers = "green";
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGame(ctx, Game);
