@@ -19,35 +19,6 @@ function randomizeState(gameState: number[], bombCount: number) {
     bombCount--;
   }
 }
-function drawState(
-  ctx: CanvasRenderingContext2D,
-  gameState: number[],
-  numbers: number[],
-  width: number,
-  height: number,
-  cellSize: number,
-) {
-  const old = ctx.fillStyle;
-  const offset = 0.1;
-  ctx.fillStyle = "red";
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      const index = j + i * width;
-      if (!gameState[index]) {
-        if (numbers[index] == 0) continue;
-        ctx.fillText(
-          numbers[index].toString(),
-          (j + offset) * cellSize,
-          (i + 1 - offset) * cellSize,
-          cellSize,
-        );
-      } else {
-        ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
-      }
-    }
-  }
-  ctx.fillStyle = old;
-}
 function resize(canvas: HTMLCanvasElement) {
   if (canvas.width / canvas.height > innerWidth / innerHeight) {
     canvas.style.width = "100%";
@@ -83,32 +54,6 @@ function calculateNums(
       }
     }
   }
-}
-function drawMask(
-  ctx: CanvasRenderingContext2D,
-  mask: number[],
-  width: number,
-  height: number,
-  cellSize: number,
-) {
-  const old = ctx.fillStyle;
-  const padding = 0.1;
-  for (let i = 0; i < height; i++) {
-    for (let j = 0; j < width; j++) {
-      const index = j + i * width;
-      if (mask[index]) continue;
-      ctx.fillStyle = "green";
-      ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
-      ctx.fillStyle = "grey";
-      ctx.fillRect(
-        j * cellSize + padding,
-        i * cellSize + padding,
-        cellSize - padding * 2,
-        cellSize - padding * 2,
-      );
-    }
-  }
-  ctx.fillStyle = old;
 }
 function updateMask(game: Game, index: number) {
   const indices = fillIndices(game.numbers, game.width, game.height, index, 0);
@@ -152,15 +97,48 @@ function initGame(ctx: CanvasRenderingContext2D, game: Game) {
   drawGame(ctx, game);
 }
 function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
-  drawState(
-    ctx,
-    game.gameState,
-    game.numbers,
-    game.width,
-    game.height,
-    game.cellSize,
-  );
-  drawMask(ctx, game.mask, game.width, game.height, game.cellSize);
+  const old = ctx.fillStyle;
+  const offset = 0.1;
+  const padding = 0.2;
+  for (let i = 0; i < game.height; i++) {
+    for (let j = 0; j < game.width; j++) {
+      const index = j + i * game.width;
+      if (!game.mask[index]) {
+        ctx.fillStyle = "green";
+        ctx.fillRect(
+          j * game.cellSize,
+          i * game.cellSize,
+          game.cellSize,
+          game.cellSize,
+        );
+        ctx.fillStyle = "grey";
+        ctx.fillRect(
+          j * game.cellSize + padding,
+          i * game.cellSize + padding,
+          game.cellSize - padding * 2,
+          game.cellSize - padding * 2,
+        );
+      } else if (!game.gameState[index]) {
+        if (game.numbers[index] == 0) continue;
+        ctx.fillStyle = "red";
+        ctx.fillText(
+          game.numbers[index].toString(),
+          (j + offset) * game.cellSize,
+          (i + 1 - offset) * game.cellSize,
+          game.cellSize,
+        );
+      } else {
+        ctx.fillStyle = "red";
+        ctx.fillRect(
+          j * game.cellSize,
+          i * game.cellSize,
+          game.cellSize,
+          game.cellSize,
+        );
+      }
+    }
+  }
+  ctx.fillStyle = old;
 }
 type Game = {
   gameState: States[];
@@ -181,7 +159,6 @@ const Game: Game = {
   cellSize: 10,
 };
 function retrieveFormData(form: HTMLFormElement, game: Game) {
-  if (!form) return;
   game.bombCount = parseInt(
     (form.elements.namedItem("bombCount") as HTMLInputElement).value,
   );
@@ -215,6 +192,7 @@ globalThis.window.onload = () => {
   resize(canvas);
 
   globalThis.onpointerdown = (e) => {
+    if (e.target != canvas) return;
     const rect = canvas.getBoundingClientRect();
     let x = e.x - rect.left;
     let y = e.y - rect.top;
