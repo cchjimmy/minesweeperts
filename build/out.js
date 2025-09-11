@@ -138,27 +138,32 @@ const Game = {
   bombCount: 20,
   cellSize: 10
 };
+function retrieveFormData(form, game) {
+  if (!form) return;
+  game.bombCount = parseInt(
+    form.elements.namedItem("bombCount").value
+  );
+  game.width = parseInt(
+    form.elements.namedItem("width").value
+  );
+  game.height = parseInt(
+    form.elements.namedItem("height").value
+  );
+}
 globalThis.window.onload = () => {
   const canvas = document.querySelector("canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  globalThis.onresize = () => resize(canvas);
-  initGame(ctx, Game);
-  let now = performance.now();
   const form = document.querySelector("form");
   if (!form) return;
+  globalThis.onresize = () => resize(canvas);
+  retrieveFormData(form, Game);
+  initGame(ctx, Game);
+  let now = performance.now();
   form.onsubmit = (e) => {
     e.preventDefault();
-    Game.bombCount = parseInt(
-      form.elements.namedItem("bombCount").value
-    );
-    Game.width = parseInt(
-      form.elements.namedItem("width").value
-    );
-    Game.height = parseInt(
-      form.elements.namedItem("height").value
-    );
+    retrieveFormData(form, Game);
     initGame(ctx, Game);
     now = performance.now();
   };

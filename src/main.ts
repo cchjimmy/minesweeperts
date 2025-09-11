@@ -180,30 +180,38 @@ const Game: Game = {
   bombCount: 20,
   cellSize: 10,
 };
+function retrieveFormData(form: HTMLFormElement, game: Game) {
+  if (!form) return;
+  game.bombCount = parseInt(
+    (form.elements.namedItem("bombCount") as HTMLInputElement).value,
+  );
+  game.width = parseInt(
+    (form.elements.namedItem("width") as HTMLInputElement).value,
+  );
+  game.height = parseInt(
+    (form.elements.namedItem("height") as HTMLInputElement).value,
+  );
+}
 globalThis.window.onload = () => {
   const canvas = document.querySelector("canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  globalThis.onresize = () => resize(canvas);
-  initGame(ctx, Game);
-  let now = performance.now();
   const form = document.querySelector("form");
   if (!form) return;
+
+  globalThis.onresize = () => resize(canvas);
+  retrieveFormData(form, Game);
+  initGame(ctx, Game);
+  let now = performance.now();
+
   form.onsubmit = (e) => {
     e.preventDefault();
-    Game.bombCount = parseInt(
-      (form.elements.namedItem("bombCount") as HTMLInputElement).value,
-    );
-    Game.width = parseInt(
-      (form.elements.namedItem("width") as HTMLInputElement).value,
-    );
-    Game.height = parseInt(
-      (form.elements.namedItem("height") as HTMLInputElement).value,
-    );
+    retrieveFormData(form, Game);
     initGame(ctx, Game);
     now = performance.now();
   };
+
   resize(canvas);
 
   globalThis.onpointerdown = (e) => {
