@@ -88,10 +88,10 @@ function drawMask(ctx, mask, width, height, cellSize) {
   }
   ctx.fillStyle = old;
 }
-function updateMask(mask, numbers, width, height, index) {
-  const indices = fillIndices(numbers, width, height, index, 0);
+function updateMask(game, index) {
+  const indices = fillIndices(game.numbers, game.width, game.height, index, 0);
   for (let i = 0, l = indices.length; i < l; i++) {
-    mask[indices[i]] = 1;
+    game.mask[indices[i]] = 1;
   }
 }
 function fillIndices(numbers, width, height, index, target = numbers[index], indices = []) {
@@ -109,29 +109,60 @@ function fillIndices(numbers, width, height, index, target = numbers[index], ind
 function msToTimeFormat(ms) {
   return new Date(ms).toISOString().substring(11, 11 + 8);
 }
+function initGame(ctx, game) {
+  ctx.canvas.width = game.width * game.cellSize, ctx.canvas.height = game.height * game.cellSize;
+  clearState(game.gameState, 0 /* clear */, game.width, game.height);
+  clearState(game.numbers, 0, game.width, game.height);
+  clearState(game.mask, 0, game.width, game.height);
+  randomizeState(game.gameState, game.bombCount);
+  calculateNums(game.gameState, game.numbers, game.width, game.height);
+  drawGame(ctx, game);
+}
+function drawGame(ctx, game) {
+  drawState(
+    ctx,
+    game.gameState,
+    game.numbers,
+    game.width,
+    game.height,
+    game.cellSize
+  );
+  drawMask(ctx, game.mask, game.width, game.height, game.cellSize);
+}
+const Game = {
+  gameState: [],
+  numbers: [],
+  mask: [],
+  width: 20,
+  height: 20,
+  bombCount: 20,
+  cellSize: 10
+};
 globalThis.window.onload = () => {
   const canvas = document.querySelector("canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const gameState = [];
-  const numbers = [];
-  const mask = [];
-  const bombCount = 20;
-  const cellSize = 10;
-  const width = 20;
-  const height = 20;
-  canvas.width = width * cellSize, canvas.height = height * cellSize;
   globalThis.onresize = () => resize(canvas);
-  resize(canvas);
-  clearState(gameState, 0 /* clear */, width, height);
-  clearState(numbers, 0, width, height);
-  clearState(mask, 0, width, height);
-  randomizeState(gameState, bombCount);
-  calculateNums(gameState, numbers, width, height);
-  drawState(ctx, gameState, numbers, width, height, cellSize);
-  drawMask(ctx, mask, width, height, cellSize);
+  initGame(ctx, Game);
   let now = performance.now();
+  const form = document.querySelector("form");
+  if (!form) return;
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    Game.bombCount = parseInt(
+      form.elements.namedItem("bombCount").value
+    );
+    Game.width = parseInt(
+      form.elements.namedItem("width").value
+    );
+    Game.height = parseInt(
+      form.elements.namedItem("height").value
+    );
+    initGame(ctx, Game);
+    now = performance.now();
+  };
+  resize(canvas);
   globalThis.onpointerdown = (e) => {
     const rect = canvas.getBoundingClientRect();
     let x = e.x - rect.left;
@@ -143,19 +174,30 @@ globalThis.window.onload = () => {
       x *= canvas.height / innerHeight;
       y *= canvas.height / innerHeight;
     }
-    x /= cellSize;
-    y /= cellSize;
+    x /= Game.cellSize;
+    y /= Game.cellSize;
     x = Math.floor(x);
     y = Math.floor(y);
-    const selectedIndex = x + y * width;
-    updateMask(mask, numbers, width, height, selectedIndex);
-    if (gameState[selectedIndex]) console.log("BOOM");
-    if (mask.reduce((p, c) => p += +(c == 0), 0) == bombCount) {
-      console.log("WIN");
-      console.log(`Solve time: ${msToTimeFormat(performance.now() - now)}`);
+    const selectedIndex = x + y * Game.width;
+    updateMask(Game, selectedIndex);
+    if (Game.gameState[selectedIndex]) {
+      Game.mask.fill(1);
+      console.log(
+        `BOOM! Time wasted: ${msToTimeFormat(performance.now() - now)}`
+      );
+      const status = document.querySelector("#status");
+      if (!status) return;
+      status.innerHTML = `BOOM! Time wasted: ${msToTimeFormat(performance.now() - now)}`;
+    }
+    if (Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount) {
+      console.log(
+        `SOLVED! Solve time: ${msToTimeFormat(performance.now() - now)}`
+      );
+      const status = document.querySelector("#status");
+      if (!status) return;
+      status.innerHTML = `SOLVED! Solve time: ${msToTimeFormat(performance.now() - now)}`;
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawState(ctx, gameState, numbers, width, height, cellSize);
-    drawMask(ctx, mask, width, height, cellSize);
+    drawGame(ctx, Game);
   };
 };
