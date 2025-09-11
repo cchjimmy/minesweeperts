@@ -84,14 +84,14 @@ function drawGame(ctx, game) {
     for (let j = 0; j < game.width; j++) {
       const index = j + i * game.width;
       if (!game.mask[index]) {
-        ctx.fillStyle = "green";
+        ctx.fillStyle = game.colors.tileEdge;
         ctx.fillRect(
           j * game.cellSize,
           i * game.cellSize,
           game.cellSize,
           game.cellSize
         );
-        ctx.fillStyle = "grey";
+        ctx.fillStyle = game.colors.tile;
         ctx.fillRect(
           j * game.cellSize + padding,
           i * game.cellSize + padding,
@@ -100,7 +100,7 @@ function drawGame(ctx, game) {
         );
       } else if (!game.gameState[index]) {
         if (game.numbers[index] == 0) continue;
-        ctx.fillStyle = "red";
+        ctx.fillStyle = game.colors.numbers;
         ctx.fillText(
           game.numbers[index].toString(),
           (j + offset) * game.cellSize,
@@ -108,7 +108,7 @@ function drawGame(ctx, game) {
           game.cellSize
         );
       } else {
-        ctx.fillStyle = "red";
+        ctx.fillStyle = game.colors.bomb;
         ctx.fillRect(
           j * game.cellSize,
           i * game.cellSize,
@@ -127,7 +127,8 @@ const Game = {
   width: 20,
   height: 20,
   bombCount: 20,
-  cellSize: 10
+  cellSize: 10,
+  colors: { tileEdge: "green", tile: "grey", bomb: "red", numbers: "red" }
 };
 function retrieveFormData(form, game) {
   game.bombCount = parseInt(
@@ -155,6 +156,7 @@ globalThis.window.onload = () => {
     e.preventDefault();
     retrieveFormData(form, Game);
     initGame(ctx, Game);
+    Game.colors.bomb = Game.colors.numbers = "red";
     now = performance.now();
   };
   resize(canvas);
@@ -176,22 +178,15 @@ globalThis.window.onload = () => {
     y = Math.floor(y);
     const selectedIndex = x + y * Game.width;
     updateMask(Game, selectedIndex);
-    if (Game.gameState[selectedIndex]) {
+    const exploded = Game.gameState[selectedIndex];
+    const cleared = Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount;
+    if (exploded || cleared) {
       Game.mask.fill(1);
-      console.log(
-        `BOOM! Time wasted: ${msToTimeFormat(performance.now() - now)}`
-      );
       const status = document.querySelector("#status");
       if (!status) return;
-      status.innerHTML = `BOOM! Time wasted: ${msToTimeFormat(performance.now() - now)}`;
-    }
-    if (Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount) {
-      console.log(
-        `SOLVED! Solve time: ${msToTimeFormat(performance.now() - now)}`
-      );
-      const status = document.querySelector("#status");
-      if (!status) return;
-      status.innerHTML = `SOLVED! Solve time: ${msToTimeFormat(performance.now() - now)}`;
+      const frontString = exploded ? "BOOM! Time wasted: " : "SOLVED! Solve time: ";
+      status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
+      Game.colors.bomb = Game.colors.numbers = "green";
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGame(ctx, Game);
