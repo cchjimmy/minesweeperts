@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "build": "esbuild ./src/main.ts --outfile=./build/out.js",
+    "serve": "esbuild --servedir=.",
+    "start": "deno task build; deno task serve"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "esnext"]
+  },
+  "imports": {
+    "esbuild": "npm:esbuild@^0.25.9"
+  }
+}
