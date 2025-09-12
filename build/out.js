@@ -49,17 +49,17 @@ function calculateNums(gameState, numbers, width, height) {
 function updateMask(game, index) {
   const indices = fillIndices(game.numbers, game.width, game.height, index, 0);
   for (let i = 0, l = indices.length; i < l; i++) {
-    game.mask[indices[i]] = 1;
+    game.mask[indices[i]] = 0;
   }
 }
 function fillIndices(numbers, width, height, index, target = numbers[index], indices = []) {
   indices.push(index);
   if (numbers[index] != target) return indices;
-  for (let layers = index - width; layers <= index + width; layers += width) {
+  for (let layer = index - width; layer <= index + width; layer += width) {
     for (let offset = -1; offset <= 1; offset++) {
-      if (!indices.includes(layers + offset) && Math.floor((layers + offset) / width) == Math.floor(layers / width)) {
-        fillIndices(numbers, width, height, layers + offset, target, indices);
-      }
+      if (indices.includes(layer + offset) || Math.floor((layer + offset) / width) != Math.floor(layer / width))
+        continue;
+      fillIndices(numbers, width, height, layer + offset, target, indices);
     }
   }
   return indices;
@@ -77,7 +77,7 @@ function initGame(ctx, game) {
   game.colors.tile = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
   clearState(game.gameState, 0 /* clear */, game.width, game.height);
   clearState(game.numbers, 0, game.width, game.height);
-  clearState(game.mask, 0, game.width, game.height);
+  clearState(game.mask, 1, game.width, game.height);
   randomizeState(game.gameState, game.bombCount);
   calculateNums(game.gameState, game.numbers, game.width, game.height);
   drawGame(ctx, game);
@@ -90,7 +90,7 @@ function drawGame(ctx, game) {
   for (let i = 0; i < game.height; i++) {
     for (let j = 0; j < game.width; j++) {
       const index = j + i * game.width;
-      if (!game.mask[index]) {
+      if (game.mask[index]) {
         ctx.fillStyle = game.colors.tileEdge;
         ctx.fillRect(
           j * game.cellSize,
@@ -187,10 +187,10 @@ globalThis.window.onload = () => {
     const selectedIndex = x + y * Game.width;
     updateMask(Game, selectedIndex);
     const exploded = Game.gameState[selectedIndex];
-    const solved = Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount;
+    const solved = Game.mask.reduce((p, c) => p += c, 0) == Game.bombCount;
     if ((exploded || solved) && !gameEnded) {
       gameEnded = true;
-      Game.mask.fill(1);
+      Game.mask.fill(0);
       const status = document.querySelector("#status");
       if (!status) return;
       const frontString = exploded ? "BOOM! Time wasted: " : "SOLVED! Solve time: ";
