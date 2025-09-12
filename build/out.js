@@ -86,6 +86,7 @@ function drawGame(ctx, game) {
   const old = ctx.fillStyle;
   const offset = 0.1;
   const padding = 0.2;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (let i = 0; i < game.height; i++) {
     for (let j = 0; j < game.width; j++) {
       const index = j + i * game.width;
@@ -184,7 +185,7 @@ globalThis.window.onload = () => {
     const selectedIndex = x + y * Game.width;
     updateMask(Game, selectedIndex);
     const exploded = Game.gameState[selectedIndex];
-    const solved = Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount;
+    const solved = !exploded && Game.mask.reduce((p, c) => p += +(c == 0), 0) == Game.bombCount;
     if (exploded || solved) {
       Game.mask.fill(1);
       const status = document.querySelector("#status");
@@ -193,7 +194,6 @@ globalThis.window.onload = () => {
       status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
       if (solved) Game.colors.bomb = Game.colors.numbers = "green";
     }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawGame(ctx, Game);
   };
 };
