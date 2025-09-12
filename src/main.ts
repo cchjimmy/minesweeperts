@@ -190,12 +190,14 @@ globalThis.window.onload = () => {
   retrieveFormData(form, Game);
   initGame(ctx, Game);
   let now = performance.now();
+  let gameEnded = false;
 
   form.onsubmit = (e) => {
     e.preventDefault();
     retrieveFormData(form, Game);
     initGame(ctx, Game);
     now = performance.now();
+    gameEnded = false;
   };
 
   resize(canvas);
@@ -220,9 +222,9 @@ globalThis.window.onload = () => {
     updateMask(Game, selectedIndex);
     const exploded = Game.gameState[selectedIndex];
     const solved =
-      !exploded &&
       Game.mask.reduce((p, c) => (p += +(c == 0)), 0) == Game.bombCount;
-    if (exploded || solved) {
+    if ((exploded || solved) && !gameEnded) {
+      gameEnded = true;
       Game.mask.fill(1);
       const status = document.querySelector("#status");
       if (!status) return;
