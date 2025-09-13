@@ -24,9 +24,11 @@ function resize(canvas: HTMLCanvasElement) {
   if (canvas.width / canvas.height > innerWidth / innerHeight) {
     canvas.style.width = "100%";
     canvas.style.height = "";
+    document.body.style.flexDirection = "column";
   } else {
     canvas.style.width = "";
     canvas.style.height = "100%";
+    document.body.style.flexDirection = "row";
   }
 }
 function calculateNums(
@@ -165,15 +167,6 @@ type Game = {
   cellSize: number;
   colors: { tileEdge: string; tile: string; bomb: string; numbers: string };
 };
-const Game: Game = {
-  gameState: [],
-  numbers: [],
-  width: 20,
-  height: 20,
-  bombCount: 20,
-  cellSize: 10,
-  colors: { tileEdge: "green", tile: "grey", bomb: "red", numbers: "red" },
-};
 function retrieveFormData(form: HTMLFormElement, game: Game) {
   game.bombCount = parseInt(
     (form.elements.namedItem("bombCount") as HTMLInputElement).value,
@@ -194,13 +187,24 @@ globalThis.window.onload = () => {
   if (!form) return;
   const flagToggle = document.querySelector("#flag-toggle") as HTMLInputElement;
   if (!flagToggle) return;
+  const contentBox = document.querySelector(".content");
+  if (!contentBox) return;
 
-  retrieveFormData(form, Game);
-  initGame(ctx, Game);
-  resize(canvas);
+  const Game: Game = {
+    gameState: [],
+    numbers: [],
+    width: 20,
+    height: 20,
+    bombCount: 20,
+    cellSize: 10,
+    colors: { tileEdge: "green", tile: "grey", bomb: "red", numbers: "red" },
+  };
   let now = performance.now();
   let gameEnded = false;
   let flagMode = flagToggle.checked;
+  retrieveFormData(form, Game);
+  initGame(ctx, Game);
+  resize(canvas);
 
   globalThis.onresize = () => resize(canvas);
 
@@ -222,12 +226,13 @@ globalThis.window.onload = () => {
     const rect = canvas.getBoundingClientRect();
     let x = e.x - rect.left;
     let y = e.y - rect.top;
-    if (canvas.width / canvas.height > innerWidth / innerHeight) {
-      x *= canvas.width / innerWidth;
-      y *= canvas.width / innerWidth;
+    const contentRect = contentBox.getBoundingClientRect();
+    if (canvas.width / canvas.height > contentRect.width / contentRect.height) {
+      x *= canvas.width / contentRect.width;
+      y *= canvas.width / contentRect.width;
     } else {
-      x *= canvas.height / innerHeight;
-      y *= canvas.height / innerHeight;
+      x *= canvas.height / contentRect.height;
+      y *= canvas.height / contentRect.height;
     }
     x /= Game.cellSize;
     y /= Game.cellSize;
