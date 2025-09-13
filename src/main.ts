@@ -1,6 +1,7 @@
-enum States {
-  bomb = 1,
-  clear = 0,
+enum TileStates {
+  bomb = 1 << 0,
+  flag = 1 << 1,
+  mask = 1 << 2,
 }
 function clearState(
   gameState: number[],
@@ -14,8 +15,8 @@ function clearState(
 function randomizeState(gameState: number[], bombCount: number) {
   for (let i = 0, l = gameState.length; i < l; i++) {
     const chance = bombCount / (l - i);
-    if (Math.random() > chance && !gameState[i]) continue;
-    gameState[i] = States.bomb;
+    if (Math.random() > chance && !(gameState[i] & TileStates.bomb)) continue;
+    gameState[i] |= TileStates.bomb;
     bombCount--;
   }
 }
@@ -36,21 +37,21 @@ function calculateNums(
 ) {
   for (let i = 0; i < height; i++) {
     const index = i * width;
-    let top = +!!gameState[index - width];
-    let mid = +!!gameState[index];
-    let bot = +!!gameState[index + width];
+    let top = +!!(gameState[index - width] & TileStates.bomb);
+    let mid = +!!(gameState[index] & TileStates.bomb);
+    let bot = +!!(gameState[index + width] & TileStates.bomb);
     for (let j = 0; j < width; j++) {
       const index = j + i * width;
       if (j < width - 1) {
-        top += +!!gameState[index + 1 - width];
-        mid += +!!gameState[index + 1];
-        bot += +!!gameState[index + 1 + width];
+        top += +!!(gameState[index + 1 - width] & TileStates.bomb);
+        mid += +!!(gameState[index + 1] & TileStates.bomb);
+        bot += +!!(gameState[index + 1 + width] & TileStates.bomb);
       }
       numbers[index] = top + mid + bot;
       if (j > 0) {
-        top -= +!!gameState[index - width - 1];
-        mid -= +!!gameState[index - 1];
-        bot -= +!!gameState[index + width - 1];
+        top -= +!!(gameState[index - width - 1] & TileStates.bomb);
+        mid -= +!!(gameState[index - 1] & TileStates.bomb);
+        bot -= +!!(gameState[index + width - 1] & TileStates.bomb);
       }
     }
   }
@@ -58,7 +59,7 @@ function calculateNums(
 function updateMask(game: Game, index: number) {
   const indices = fillIndices(game.numbers, game.width, game.height, index, 0);
   for (let i = 0, l = indices.length; i < l; i++) {
-    game.mask[indices[i]] = 0;
+    game.gameState[indices[i]] &= ~TileStates.mask;
   }
 }
 function fillIndices(
@@ -95,9 +96,8 @@ function initGame(ctx: CanvasRenderingContext2D, game: Game) {
   game.colors.bomb = game.colors.numbers = "red";
   game.colors.tileEdge = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
   game.colors.tile = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
-  clearState(game.gameState, States.clear, game.width, game.height);
+  clearState(game.gameState, TileStates.mask, game.width, game.height);
   clearState(game.numbers, 0, game.width, game.height);
-  clearState(game.mask, 1, game.width, game.height);
   randomizeState(game.gameState, game.bombCount);
   calculateNums(game.gameState, game.numbers, game.width, game.height);
   drawGame(ctx, game);
@@ -110,7 +110,7 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
   for (let i = 0; i < game.height; i++) {
     for (let j = 0; j < game.width; j++) {
       const index = j + i * game.width;
-      if (game.mask[index]) {
+      if (game.gameState[index] & TileStates.mask) {
         ctx.fillStyle = game.colors.tileEdge;
         ctx.fillRect(
           j * game.cellSize,
@@ -125,7 +125,24 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
           game.cellSize - padding * 2,
           game.cellSize - padding * 2,
         );
-      } else if (!game.gameState[index]) {
+        if (game.gameState[index] & TileStates.flag) {
+          ctx.fillStyle = "white";
+          ctx.fillText(
+            "F",
+            (j + offset) * game.cellSize,
+            (i + 1 - offset) * game.cellSize,
+            game.cellSize,
+          );
+        }
+      } else if (game.gameState[index] & TileStates.bomb) {
+        ctx.fillStyle = game.colors.bomb;
+        ctx.fillRect(
+          j * game.cellSize,
+          i * game.cellSize,
+          game.cellSize,
+          game.cellSize,
+        );
+      } else {
         if (game.numbers[index] == 0) continue;
         ctx.fillStyle = game.colors.numbers;
         ctx.fillText(
@@ -134,23 +151,14 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
           (i + 1 - offset) * game.cellSize,
           game.cellSize,
         );
-      } else {
-        ctx.fillStyle = game.colors.bomb;
-        ctx.fillRect(
-          j * game.cellSize,
-          i * game.cellSize,
-          game.cellSize,
-          game.cellSize,
-        );
       }
     }
   }
   ctx.fillStyle = old;
 }
 type Game = {
-  gameState: States[];
+  gameState: number[];
   numbers: number[];
-  mask: number[];
   width: number;
   height: number;
   bombCount: number;
@@ -160,7 +168,6 @@ type Game = {
 const Game: Game = {
   gameState: [],
   numbers: [],
-  mask: [],
   width: 20,
   height: 20,
   bombCount: 20,
@@ -185,25 +192,33 @@ globalThis.window.onload = () => {
   if (!ctx) return;
   const form = document.querySelector("form");
   if (!form) return;
+  const flagToggle = document.querySelector("#flag-toggle") as HTMLInputElement;
+  if (!flagToggle) return;
 
-  globalThis.onresize = () => resize(canvas);
   retrieveFormData(form, Game);
   initGame(ctx, Game);
+  resize(canvas);
   let now = performance.now();
   let gameEnded = false;
+  let flagMode = flagToggle.checked;
+
+  globalThis.onresize = () => resize(canvas);
 
   form.onsubmit = (e) => {
     e.preventDefault();
     retrieveFormData(form, Game);
     initGame(ctx, Game);
+    resize(canvas);
     now = performance.now();
     gameEnded = false;
   };
 
-  resize(canvas);
+  flagToggle.onclick = () => {
+    flagMode = flagToggle.checked;
+  };
 
   globalThis.onpointerdown = (e) => {
-    if (e.target != canvas) return;
+    if (e.target != canvas || gameEnded) return;
     const rect = canvas.getBoundingClientRect();
     let x = e.x - rect.left;
     let y = e.y - rect.top;
@@ -219,12 +234,22 @@ globalThis.window.onload = () => {
     x = Math.floor(x);
     y = Math.floor(y);
     const selectedIndex = x + y * Game.width;
+    if (flagMode) {
+      Game.gameState[selectedIndex] ^= TileStates.flag;
+      drawGame(ctx, Game);
+      return;
+    }
+    if (Game.gameState[selectedIndex] & TileStates.flag) return;
     updateMask(Game, selectedIndex);
-    const exploded = Game.gameState[selectedIndex];
-    const solved = Game.mask.reduce((p, c) => (p += c), 0) == Game.bombCount;
-    if ((exploded || solved) && !gameEnded) {
+    const exploded = !!(Game.gameState[selectedIndex] & TileStates.bomb);
+    const solved =
+      Game.gameState.reduce((p, c) => (p += +!!(c & TileStates.mask)), 0) ==
+      Game.bombCount;
+    if (exploded || solved) {
       gameEnded = true;
-      Game.mask.fill(0);
+      for (let i = 0, l = Game.gameState.length; i < l; i++) {
+        Game.gameState[i] &= ~TileStates.mask;
+      }
       const status = document.querySelector("#status");
       if (!status) return;
       const frontString = exploded
