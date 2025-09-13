@@ -261,7 +261,7 @@ globalThis.window.onload = () => {
         ? "BOOM! Time wasted: "
         : "SOLVED! Solve time: ";
       status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
-      if (solved) Game.colors.bomb = Game.colors.numbers = "green";
+      if (solved && !exploded) Game.colors.bomb = Game.colors.numbers = "green";
     }
     drawGame(ctx, Game);
   };
