@@ -189,6 +189,10 @@ globalThis.window.onload = () => {
   if (!flagToggle) return;
   const contentBox = document.querySelector(".content");
   if (!contentBox) return;
+  const flagCountSpan = document.querySelector(
+    "#flag-count",
+  ) as HTMLSpanElement;
+  if (!flagCountSpan) return;
 
   const Game: Game = {
     gameState: [],
@@ -242,27 +246,38 @@ globalThis.window.onload = () => {
     if (flagMode) {
       Game.gameState[selectedIndex] ^= TileStates.flag;
       drawGame(ctx, Game);
-      return;
     }
-    if (Game.gameState[selectedIndex] & TileStates.flag) return;
-    updateMask(Game, selectedIndex);
-    const exploded = !!(Game.gameState[selectedIndex] & TileStates.bomb);
-    const solved =
-      Game.gameState.reduce((p, c) => (p += +!!(c & TileStates.mask)), 0) ==
-      Game.bombCount;
-    if (exploded || solved) {
-      gameEnded = true;
-      for (let i = 0, l = Game.gameState.length; i < l; i++) {
-        Game.gameState[i] &= ~TileStates.mask;
+    if ((Game.gameState[selectedIndex] & TileStates.flag) == 0 && !flagMode) {
+      updateMask(Game, selectedIndex);
+      const exploded = !!(Game.gameState[selectedIndex] & TileStates.bomb);
+      const solved =
+        Game.gameState.reduce((p, c) => (p += +!!(c & TileStates.mask)), 0) ==
+        Game.bombCount;
+      if (exploded || solved) {
+        gameEnded = true;
+        for (let i = 0, l = Game.gameState.length; i < l; i++) {
+          Game.gameState[i] &= ~TileStates.mask;
+        }
+        const status = document.querySelector("#status");
+        if (!status) return;
+        const frontString = exploded
+          ? "BOOM! Time wasted: "
+          : "SOLVED! Solve time: ";
+        status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
+        if (solved && !exploded)
+          Game.colors.bomb = Game.colors.numbers = "green";
       }
-      const status = document.querySelector("#status");
-      if (!status) return;
-      const frontString = exploded
-        ? "BOOM! Time wasted: "
-        : "SOLVED! Solve time: ";
-      status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
-      if (solved && !exploded) Game.colors.bomb = Game.colors.numbers = "green";
+      drawGame(ctx, Game);
     }
-    drawGame(ctx, Game);
+    flagCountSpan.innerHTML = Game.gameState
+      .reduce(
+        (p, c) =>
+          (p += +!!(
+            (c & (TileStates.flag | TileStates.mask)) ==
+            (TileStates.flag | TileStates.mask)
+          )),
+        0,
+      )
+      .toString();
   };
 };

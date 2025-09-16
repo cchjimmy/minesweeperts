@@ -160,6 +160,10 @@ globalThis.window.onload = () => {
   if (!flagToggle) return;
   const contentBox = document.querySelector(".content");
   if (!contentBox) return;
+  const flagCountSpan = document.querySelector(
+    "#flag-count"
+  );
+  if (!flagCountSpan) return;
   const Game = {
     gameState: [],
     numbers: [],
@@ -208,23 +212,28 @@ globalThis.window.onload = () => {
     if (flagMode) {
       Game.gameState[selectedIndex] ^= 2 /* flag */;
       drawGame(ctx, Game);
-      return;
     }
-    if (Game.gameState[selectedIndex] & 2 /* flag */) return;
-    updateMask(Game, selectedIndex);
-    const exploded = !!(Game.gameState[selectedIndex] & 1 /* bomb */);
-    const solved = Game.gameState.reduce((p, c) => p += +!!(c & 4 /* mask */), 0) == Game.bombCount;
-    if (exploded || solved) {
-      gameEnded = true;
-      for (let i = 0, l = Game.gameState.length; i < l; i++) {
-        Game.gameState[i] &= ~4 /* mask */;
+    if ((Game.gameState[selectedIndex] & 2 /* flag */) == 0 && !flagMode) {
+      updateMask(Game, selectedIndex);
+      const exploded = !!(Game.gameState[selectedIndex] & 1 /* bomb */);
+      const solved = Game.gameState.reduce((p, c) => p += +!!(c & 4 /* mask */), 0) == Game.bombCount;
+      if (exploded || solved) {
+        gameEnded = true;
+        for (let i = 0, l = Game.gameState.length; i < l; i++) {
+          Game.gameState[i] &= ~4 /* mask */;
+        }
+        const status = document.querySelector("#status");
+        if (!status) return;
+        const frontString = exploded ? "BOOM! Time wasted: " : "SOLVED! Solve time: ";
+        status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
+        if (solved && !exploded)
+          Game.colors.bomb = Game.colors.numbers = "green";
       }
-      const status = document.querySelector("#status");
-      if (!status) return;
-      const frontString = exploded ? "BOOM! Time wasted: " : "SOLVED! Solve time: ";
-      status.innerHTML = `${frontString} ${msToTimeFormat(performance.now() - now)}`;
-      if (solved && !exploded) Game.colors.bomb = Game.colors.numbers = "green";
+      drawGame(ctx, Game);
     }
-    drawGame(ctx, Game);
+    flagCountSpan.innerHTML = Game.gameState.reduce(
+      (p, c) => p += +!!((c & (2 /* flag */ | 4 /* mask */)) == (2 /* flag */ | 4 /* mask */)),
+      0
+    ).toString();
   };
 };
