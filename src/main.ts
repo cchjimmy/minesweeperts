@@ -3,6 +3,9 @@ enum TileStates {
   flag = 1 << 1,
   mask = 1 << 2,
 }
+function testFlag(mask: number, flags: number): boolean {
+  return (mask & flags) == flags;
+}
 function clearState(
   gameState: number[],
   value: number,
@@ -92,12 +95,17 @@ function msToTimeFormat(ms: number): string {
 function randomRange(max = 1, min = 0): number {
   return Math.random() * (max - min) + min;
 }
+function randomColor(): string {
+  return `#${Math.round(randomRange(16 ** 6 - 1))
+    .toString(16)
+    .padStart(6, "0")}`;
+}
 function initGame(ctx: CanvasRenderingContext2D, game: Game) {
   ((ctx.canvas.width = game.width * game.cellSize),
     (ctx.canvas.height = game.height * game.cellSize));
   game.colors.bomb = game.colors.numbers = "red";
-  game.colors.tileEdge = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
-  game.colors.tile = `rgb(${randomRange(255, 0)},${randomRange(255, 0)},${randomRange(255, 0)})`;
+  game.colors.tileEdge = randomColor();
+  game.colors.tile = randomColor();
   clearState(game.gameState, TileStates.mask, game.width, game.height);
   clearState(game.numbers, 0, game.width, game.height);
   randomizeState(game.gameState, game.bombCount);
@@ -112,7 +120,7 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
   for (let i = 0; i < game.height; i++) {
     for (let j = 0; j < game.width; j++) {
       const index = j + i * game.width;
-      if (game.gameState[index] & TileStates.mask) {
+      if (testFlag(game.gameState[index], TileStates.mask)) {
         ctx.fillStyle = game.colors.tileEdge;
         ctx.fillRect(
           j * game.cellSize,
@@ -127,7 +135,7 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
           game.cellSize - padding * 2,
           game.cellSize - padding * 2,
         );
-        if (game.gameState[index] & TileStates.flag) {
+        if (testFlag(game.gameState[index], TileStates.flag)) {
           ctx.fillStyle = "white";
           ctx.fillText(
             "F",
@@ -136,7 +144,7 @@ function drawGame(ctx: CanvasRenderingContext2D, game: Game) {
             game.cellSize,
           );
         }
-      } else if (game.gameState[index] & TileStates.bomb) {
+      } else if (testFlag(game.gameState[index], TileStates.bomb)) {
         ctx.fillStyle = game.colors.bomb;
         ctx.fillRect(
           j * game.cellSize,
@@ -217,6 +225,7 @@ globalThis.window.onload = () => {
     retrieveFormData(form, Game);
     initGame(ctx, Game);
     resize(canvas);
+    flagCountSpan.innerHTML = "0";
     now = performance.now();
     gameEnded = false;
   };
@@ -245,13 +254,15 @@ globalThis.window.onload = () => {
     const selectedIndex = x + y * Game.width;
     if (flagMode) {
       Game.gameState[selectedIndex] ^= TileStates.flag;
-      drawGame(ctx, Game);
     }
-    if ((Game.gameState[selectedIndex] & TileStates.flag) == 0 && !flagMode) {
+    if (
+      !testFlag(Game.gameState[selectedIndex], TileStates.flag) &&
+      !flagMode
+    ) {
       updateMask(Game, selectedIndex);
-      const exploded = !!(Game.gameState[selectedIndex] & TileStates.bomb);
+      const exploded = testFlag(Game.gameState[selectedIndex], TileStates.bomb);
       const solved =
-        Game.gameState.reduce((p, c) => (p += +!!(c & TileStates.mask)), 0) ==
+        Game.gameState.reduce((p, c) => p + +testFlag(c, TileStates.mask), 0) ==
         Game.bombCount;
       if (exploded || solved) {
         gameEnded = true;
@@ -267,17 +278,10 @@ globalThis.window.onload = () => {
         if (solved && !exploded)
           Game.colors.bomb = Game.colors.numbers = "green";
       }
-      drawGame(ctx, Game);
     }
+    drawGame(ctx, Game);
     flagCountSpan.innerHTML = Game.gameState
-      .reduce(
-        (p, c) =>
-          (p += +!!(
-            (c & (TileStates.flag | TileStates.mask)) ==
-            (TileStates.flag | TileStates.mask)
-          )),
-        0,
-      )
+      .reduce((p, c) => p + +testFlag(c, TileStates.flag | TileStates.mask), 0)
       .toString();
   };
 };

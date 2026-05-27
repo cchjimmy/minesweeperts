@@ -1,13 +1,13 @@
 {
   "tasks": {
-    "build": "esbuild ./src/main.ts --outfile=./build/out.js",
-    "serve": "esbuild --servedir=.",
+    "build": "deno bundle ./src/main.ts -o ./build/out.js",
+    "serve": "deno serve -R ./src/server.ts",
     "start": "deno task build; deno task serve"
   },
   "compilerOptions": {
-    "lib": ["dom", "esnext"]
+    "lib": ["dom", "esnext", "deno.ns"]
   },
   "imports": {
-    "esbuild": "npm:esbuild@^0.25.9"
+    "@std/http": "jsr:@std/http@^1.1.1"
   }
 }
