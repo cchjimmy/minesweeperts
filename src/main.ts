@@ -252,7 +252,8 @@ globalThis.window.onload = () => {
 
   globalThis.onresize = () => resize(canvas);
 
-  form.onsubmit = () => {
+  form.onsubmit = (e) => {
+    e.preventDefault();
     retrieveFormData(form, Game);
     initGame(ctx, Game);
     resize(canvas);
