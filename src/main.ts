@@ -6,6 +6,36 @@ enum TileStates {
 function testFlag(mask: number, flags: number): boolean {
   return (mask & flags) == flags;
 }
+function countStates(gameState: number[], states: number): number {
+  let count = 0;
+  for (let i = 0, l = gameState.length; i < l; i++) {
+    count += +testFlag(gameState[i], states);
+  }
+  return count;
+}
+function getClickedIndex(
+  game: Game,
+  canvas: HTMLCanvasElement,
+  canvasParent: Element,
+  e: PointerEvent,
+): number {
+  const rect = canvas.getBoundingClientRect();
+  let x = e.x - rect.left;
+  let y = e.y - rect.top;
+  const contentRect = canvasParent.getBoundingClientRect();
+  if (canvas.width / canvas.height > contentRect.width / contentRect.height) {
+    x *= canvas.width / contentRect.width;
+    y *= canvas.width / contentRect.width;
+  } else {
+    x *= canvas.height / contentRect.height;
+    y *= canvas.height / contentRect.height;
+  }
+  x /= game.cellSize;
+  y /= game.cellSize;
+  x = Math.floor(x);
+  y = Math.floor(y);
+  return x + y * game.width;
+}
 function clearState(
   gameState: number[],
   value: number,
@@ -201,6 +231,8 @@ globalThis.window.onload = () => {
     "#flag-count",
   ) as HTMLSpanElement;
   if (!flagCountSpan) return;
+  const status = document.querySelector("#status");
+  if (!status) return;
 
   const Game: Game = {
     gameState: [],
@@ -220,8 +252,7 @@ globalThis.window.onload = () => {
 
   globalThis.onresize = () => resize(canvas);
 
-  form.onsubmit = (e) => {
-    e.preventDefault();
+  form.onsubmit = () => {
     retrieveFormData(form, Game);
     initGame(ctx, Game);
     resize(canvas);
@@ -234,24 +265,24 @@ globalThis.window.onload = () => {
     flagMode = flagToggle.checked;
   };
 
+  globalThis.onkeyup = (e) => {
+    if (e.key == "f") {
+      flagMode = !flagMode;
+      flagToggle.checked = flagMode;
+    }
+    if (e.key == "g") {
+      retrieveFormData(form, Game);
+      initGame(ctx, Game);
+      resize(canvas);
+      flagCountSpan.innerHTML = "0";
+      now = performance.now();
+      gameEnded = false;
+    }
+  };
+
   globalThis.onpointerdown = (e) => {
     if (e.target != canvas || gameEnded) return;
-    const rect = canvas.getBoundingClientRect();
-    let x = e.x - rect.left;
-    let y = e.y - rect.top;
-    const contentRect = contentBox.getBoundingClientRect();
-    if (canvas.width / canvas.height > contentRect.width / contentRect.height) {
-      x *= canvas.width / contentRect.width;
-      y *= canvas.width / contentRect.width;
-    } else {
-      x *= canvas.height / contentRect.height;
-      y *= canvas.height / contentRect.height;
-    }
-    x /= Game.cellSize;
-    y /= Game.cellSize;
-    x = Math.floor(x);
-    y = Math.floor(y);
-    const selectedIndex = x + y * Game.width;
+    const selectedIndex = getClickedIndex(Game, canvas, contentBox, e);
     if (flagMode) {
       Game.gameState[selectedIndex] ^= TileStates.flag;
     }
@@ -262,15 +293,12 @@ globalThis.window.onload = () => {
       updateMask(Game, selectedIndex);
       const exploded = testFlag(Game.gameState[selectedIndex], TileStates.bomb);
       const solved =
-        Game.gameState.reduce((p, c) => p + +testFlag(c, TileStates.mask), 0) ==
-        Game.bombCount;
+        countStates(Game.gameState, TileStates.mask) == Game.bombCount;
       if (exploded || solved) {
         gameEnded = true;
         for (let i = 0, l = Game.gameState.length; i < l; i++) {
           Game.gameState[i] &= ~TileStates.mask;
         }
-        const status = document.querySelector("#status");
-        if (!status) return;
         const frontString = exploded
           ? "BOOM! Time wasted: "
           : "SOLVED! Solve time: ";
@@ -280,8 +308,9 @@ globalThis.window.onload = () => {
       }
     }
     drawGame(ctx, Game);
-    flagCountSpan.innerHTML = Game.gameState
-      .reduce((p, c) => p + +testFlag(c, TileStates.flag | TileStates.mask), 0)
-      .toString();
+    flagCountSpan.innerHTML = countStates(
+      Game.gameState,
+      TileStates.flag | TileStates.mask,
+    ).toString();
   };
 };
